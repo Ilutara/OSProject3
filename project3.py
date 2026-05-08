@@ -73,6 +73,11 @@ class BNode:
         parent_id = struct.unpack(">Q", data[8:16])[0]
         count = struct.unpack(">Q", data[16:24])[0]
 
+        if count > cls.MAX_KEYS:
+            raise ValueError("corrupt node")
+        if b_id != block_id:
+            raise ValueError("corrupt block id")
+
         keys = []
         values = []
         children = []
@@ -107,7 +112,7 @@ class BTree:
             header = bytearray(BLOCKSIZE)
             header[0:8] = MAGIC
             header[8:16] = struct.pack(">Q", 0) #root id
-            header[16:24] = struct.pack(">Q)", 1) #nextblock id
+            header[16:24] = struct.pack(">Q", 1) #nextblock id
             self.f.write(header)
             self.f.flush()
         else:
@@ -145,6 +150,7 @@ class BTree:
             root.children = [0, 0]
             self.cache.mark_dirty(root)
             self.root_id = root.block_id
+            self._write_header()
             return
         root = self.get_node(self.root_id)
         if root.count == BNode.MAX_KEYS:
@@ -153,6 +159,7 @@ class BTree:
             root.parent_id = new_root.block_id
             self.cache.mark_dirty(root)
             self.root_id = new_root.block_id
+            self._write_header()
             self._split_child(new_root, 0, root)
             self._insert_nonfull(new_root, key, value)
         else:
@@ -185,15 +192,16 @@ class BTree:
     def allocate_node(self, parent_id):
         block_id = self.next_block_id
         self.next_block_id += 1
-        node = BTreeNode(block_id, parent_id, [], [], [0])
+        node = BNode(block_id, parent_id, [], [], [0])
         self.cache.mark_dirty(node)
+        self._write_header()
         return node
 
     def get_node(self, block_id):
         return self.cache.get(block_id)
 
     def _split_child(self, parent, index, full_child):
-        t = BTreeNode.T
+        t = BNode.T
         new_node = self.allocate_node(parent_id=parent.block_id)
 
         median_key = full_child.keys[t - 1]
@@ -321,8 +329,13 @@ class NodeCache:
             raise ValueError("bad block size for write")
         self.f.seek(block_id * BLOCKSIZE)
         self.f.write(data)
+        self.f.flush()
 
     def mark_dirty(self, node):
+        if node.block_id not in self.cache and len(self.cache) >= self.max_nodes:
+            old_block_id, old_node = self.cache.popitem(last=False)
+            if old_node.dirty:
+                self._write_block(old_block_id, old_node.encode())
         node.dirty = True
         self.cache[node.block_id] = node
         self.cache.move_to_end(node.block_id)
@@ -330,7 +343,7 @@ class NodeCache:
 
 def main():	
     if len(sys.argv) < 2:
-        print("Usage: project3.py <command> [args}", file=sys.stderr)
+        print("Usage: project3.py <command> [args]", file=sys.stderr)
         sys.exit(1)
 
     cmd = sys.argv[1]
@@ -355,17 +368,20 @@ def main():
                 value = int(sys.argv[4])
                 btree = BTree(sys.argv[2])
 
-                btree.insert(key, value)
-                btree.close()
+                try:
+                    btree.insert(key, value)
+                finally:
+                    btree.close()
             case "search":
                 if len(sys.argv) != 4:
                     raise RuntimeError("Usage: project3.py search <indexfile> <key>")
 
                 key = int(sys.argv[3])
                 btree = BTree(sys.argv[2])
-
-                value = btree.search(key)
-                btree.close()
+                try:
+                    value = btree.search(key)
+                finally:
+                    btree.close()
                 if value is None:
                     raise RuntimeError("Key not found")
                 print(f"{key}: {value}")
@@ -386,14 +402,17 @@ def main():
                                 raise RuntimeError("Bad CSV row")
                             key = int(row[0].strip())
                             value = int(row[1].strip())
-                            bt.insert(key, value)
+                            btree.insert(key, value)
                 finally:
                     btree.close()
             case "print":
                 if len(sys.argv) != 3:
                     raise RuntimeError("Usage: project3.py print <indexfile>")
                 btree = BTree(sys.argv[2])
-                btree.inorder_traverse(lambda k, v: print(f"{k} {v}"))
+                try:
+                    btree.inorder_traverse(lambda k, v: print(f"{k} {v}"))
+                finally:
+                    btree.close()
             case "extract":
                 if len(sys.argv) != 4:
                     raise RuntimeError("Usage: project3.py extract <indexfile> <csvfile>")
