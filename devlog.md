@@ -41,3 +41,17 @@ Next:
 - work on btree and cache more
 - add btree nodes
 - actually implement functionality instead of ensuring it reaches the right place
+
+2026-5-8 13:26
+Goal:
+- finish rest of project before my event
+- specifically complete btree, cache
+- add node
+
+It works!!!
+
+Accomplished: all goals
+
+Must do:
+- check all requirements satisfied
+- double check everything works correctly
