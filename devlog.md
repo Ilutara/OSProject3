@@ -10,3 +10,21 @@ I can see a couple major parts:
 
 is there code to help? oh there is an idx file
 that may help but no actual code. oh well. i can do this from scratch.
+
+
+2026-5-8 10:42
+Goals:
+- Starting with getting input for now
+
+there doesn't seem to be a switch statement in python so i can use match and cases and hope that works
+
+Accomplished:
+- use case/match for the different cases
+- detect incorrect number of arguments and invalid commands
+- tested to make sure it works so far
+
+Next: 
+- validate the cases with the specific specifications
+- b tree stuff
+
+
