@@ -27,4 +27,17 @@ Next:
 - validate the cases with the specific specifications
 - b tree stuff
 
+2026-5-8 11:05
+Goals:
+- check command specification
 
+Seems I may need to create a Btree class
+ok so the rest of this implementation is really tied into Btree stuff too
+
+Accomplished: 
+- starting working with the btree for the actual command functions
+
+Next:
+- work on btree and cache more
+- add btree nodes
+- actually implement functionality instead of ensuring it reaches the right place
